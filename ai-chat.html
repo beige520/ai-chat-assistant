@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI对话助手</title>
+    <title>AI对话助手（支持图片）</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -112,6 +112,65 @@
             background: white;
             border-top: 1px solid #e9ecef;
         }
+        .input-tools {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .upload-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-btn:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+        .upload-btn svg {
+            width: 20px;
+            height: 20px;
+            color: #667eea;
+        }
+        #fileInput {
+            display: none;
+        }
+        .preview-images {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .preview-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #e9ecef;
+            position: relative;
+        }
+        .preview-image .remove-img {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
         .input-row {
             display: flex;
             gap: 15px;
@@ -159,11 +218,18 @@
             color: #28a745;
             text-align: center;
         }
+        .message-image {
+            max-width: 200px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid #e9ecef;
+        }
         @media (max-width: 600px) {
             .container { border-radius: 10px; }
             .input-row { flex-direction: column; }
             .message-content { max-width: 95%; }
             .chat-area { height: 400px; }
+            .message-image { max-width: 150px; }
         }
     </style>
 </head>
@@ -171,27 +237,40 @@
     <div class="container">
         <div class="header">
             <h1>🤖 AI对话助手</h1>
-            <p>基于火山方舟豆包模型</p>
+            <p>基于火山方舟豆包模型（支持图片问答）</p>
         </div>
         
         <div class="chat-area" id="chatArea">
             <div class="message ai">
                 <div class="role">AI助手</div>
                 <div class="message-content">
-                    您好！我是AI对话助手，随时准备为您解答问题。<br><br>
-                    请在下方输入框中输入您的问题，点击发送即可开始对话。
+                    您好！我是AI对话助手，支持文字和图片问答。<br><br>
+                    请在下方输入框中输入您的问题，也可以上传图片进行提问。
                 </div>
             </div>
         </div>
         
         <div class="input-area">
+            <div class="input-tools">
+                <label class="upload-btn" for="fileInput">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </label>
+                <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFileUpload(event)">
+            </div>
+            
+            <div class="preview-images" id="previewImages"></div>
+            
             <div class="input-row">
-                <textarea class="input-text" id="inputText" placeholder="输入您的问题..." onkeydown="handleKeyDown(event)"></textarea>
+                <textarea class="input-text" id="inputText" placeholder="输入您的问题...（可搭配图片提问）" onkeydown="handleKeyDown(event)"></textarea>
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
             </div>
         </div>
         
-        <div class="status-bar" id="statusBar">✓ API配置已就绪，可以开始对话</div>
+        <div class="status-bar" id="statusBar">✓ API配置已就绪，可以开始对话（支持图片）</div>
     </div>
 
     <script>
@@ -199,8 +278,49 @@
         const API_KEY = "ark-44dc49a2-8f40-4ed7-bee4-2ccc6778e8c0-86224";
         const MODEL_NAME = "doubao-seed-2-0-lite-260428";
         let isStreaming = false;
+        let uploadedImages = []; // 存储上传的图片Base64数据
 
-        function addMessage(role, content) {
+        // 处理文件上传
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+            
+            const previewContainer = document.getElementById('previewImages');
+            
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Data = e.target.result;
+                    uploadedImages.push(base64Data);
+                    
+                    // 创建预览图
+                    const previewDiv = document.createElement('div');
+                    previewDiv.className = 'preview-image';
+                    previewDiv.innerHTML = `
+                        <img src="${base64Data}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">
+                        <span class="remove-img" onclick="removeImage(this, '${base64Data}')">×</span>
+                    `;
+                    previewContainer.appendChild(previewDiv);
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            // 清空文件输入
+            document.getElementById('fileInput').value = '';
+        }
+
+        // 移除图片
+        function removeImage(element, base64Data) {
+            // 从数组中移除
+            uploadedImages = uploadedImages.filter(img => img !== base64Data);
+            // 从DOM中移除
+            element.parentElement.remove();
+        }
+
+        // 添加消息到聊天区域
+        function addMessage(role, content, images = []) {
             const chatArea = document.getElementById('chatArea');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
@@ -211,7 +331,17 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            // 拼接图片和文字
+            let htmlContent = '';
+            // 添加图片
+            images.forEach(img => {
+                htmlContent += `<img src="${img}" class="message-image"><br>`;
+            });
+            // 添加文字
+            htmlContent += content.replace(/\n/g, '<br>');
+            
+            contentDiv.innerHTML = htmlContent;
             
             messageDiv.appendChild(roleDiv);
             messageDiv.appendChild(contentDiv);
@@ -241,24 +371,60 @@
             document.getElementById('statusBar').textContent = message;
         }
 
+        // 将Base64转换为API要求的格式（移除data:image/*;base64,前缀）
+        function formatImageForAPI(base64Data) {
+            return base64Data.split(',')[1];
+        }
+
         async function sendMessage() {
             if (isStreaming) return;
             
             const inputText = document.getElementById('inputText').value.trim();
-            if (!inputText) {
-                alert("请输入问题");
+            // 检查是否有输入（文字或图片）
+            if (!inputText && uploadedImages.length === 0) {
+                alert("请输入问题或上传图片");
                 return;
             }
             
+            // 清空输入框和预览图
             document.getElementById('inputText').value = '';
+            document.getElementById('previewImages').innerHTML = '';
             document.getElementById('sendBtn').disabled = true;
             isStreaming = true;
             
-            addMessage('user', inputText);
+            // 添加用户消息（包含图片和文字）
+            addMessage('user', inputText, uploadedImages);
             const typingDiv = showTyping();
-            updateStatus("AI正在思考中...");
+            updateStatus("AI正在分析图片和文字...");
             
             try {
+                // 构建消息内容
+                let messagesContent = [];
+                
+                // 如果有图片，构建多模态消息
+                if (uploadedImages.length > 0) {
+                    messagesContent.push({
+                        role: 'user',
+                        content: [
+                            // 文字部分
+                            { type: 'text', text: inputText || '请分析这张图片' },
+                            // 图片部分
+                            ...uploadedImages.map(img => ({
+                                type: 'image_url',
+                                image_url: {
+                                    url: `data:image/jpeg;base64,${formatImageForAPI(img)}`
+                                }
+                            }))
+                        ]
+                    });
+                } else {
+                    // 纯文字消息
+                    messagesContent.push({
+                        role: 'user',
+                        content: inputText
+                    });
+                }
+                
                 const response = await fetch(`${API_BASE_URL}/chat/completions`, {
                     method: 'POST',
                     headers: {
@@ -267,7 +433,7 @@
                     },
                     body: JSON.stringify({
                         model: MODEL_NAME,
-                        messages: [{ role: 'user', content: inputText }],
+                        messages: messagesContent,
                         stream: true
                     })
                 });
@@ -308,13 +474,14 @@
                     }
                 }
                 
-                updateStatus("✓ 对话完成");
+                updateStatus("✓ 分析完成");
             } catch (error) {
                 removeTyping(typingDiv);
                 addMessage('ai', `<span style="color: #dc3545;">错误: ${error.message}</span>`);
                 updateStatus(`错误: ${error.message}`);
             } finally {
                 isStreaming = false;
+                uploadedImages = []; // 清空图片数组
                 document.getElementById('sendBtn').disabled = false;
                 document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
             }
