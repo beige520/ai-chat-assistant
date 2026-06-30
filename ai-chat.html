@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI对话助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .chat-area {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px 30px;
+            background: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 5px 15px;
+            margin-left: auto;
+        }
+        .message.ai .message-content {
+            background: white;
+            color: #333;
+            border-radius: 15px 15px 15px 5px;
+            border: 1px solid #e9ecef;
+        }
+        .message-content {
+            max-width: 80%;
+            padding: 15px 20px;
+            font-size: 15px;
+            line-height: 1.6;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .message.role {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+            margin-left: 10px;
+        }
+        .message.user .role {
+            text-align: right;
+            margin-right: 10px;
+            margin-left: 0;
+        }
+        .typing-indicator {
+            display: inline-flex;
+            gap: 5px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 15px 15px 15px 5px;
+            border: 1px solid #e9ecef;
+        }
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .input-area {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        .input-row {
+            display: flex;
+            gap: 15px;
+        }
+        .input-text {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            overflow-y: auto;
+            transition: border-color 0.3s;
+        }
+        .input-text:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .send-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            white-space: nowrap;
+        }
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .status-bar {
+            padding: 10px 30px;
+            background: #e9ecef;
+            font-size: 12px;
+            color: #28a745;
+            text-align: center;
+        }
+        @media (max-width: 600px) {
+            .container { border-radius: 10px; }
+            .input-row { flex-direction: column; }
+            .message-content { max-width: 95%; }
+            .chat-area { height: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI对话助手</h1>
+            <p>基于火山方舟豆包模型</p>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="message ai">
+                <div class="role">AI助手</div>
+                <div class="message-content">
+                    您好！我是AI对话助手，随时准备为您解答问题。<br><br>
+                    请在下方输入框中输入您的问题，点击发送即可开始对话。
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <div class="input-row">
+                <textarea class="input-text" id="inputText" placeholder="输入您的问题..." onkeydown="handleKeyDown(event)"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+        
+        <div class="status-bar" id="statusBar">✓ API配置已就绪，可以开始对话</div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
+        const API_KEY = "ark-44dc49a2-8f40-4ed7-bee4-2ccc6778e8c0-86224";
+        const MODEL_NAME = "doubao-lite";
+        let isStreaming = false;
+
+        function addMessage(role, content) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'role';
+            roleDiv.textContent = role === 'user' ? '您' : 'AI助手';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(roleDiv);
+            messageDiv.appendChild(contentDiv);
+            chatArea.appendChild(messageDiv);
+            
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return contentDiv;
+        }
+
+        function showTyping() {
+            const chatArea = document.getElementById('chatArea');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.innerHTML = '<span></span><span></span><span></span>';
+            chatArea.appendChild(typingDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return typingDiv;
+        }
+
+        function removeTyping(typingDiv) {
+            if (typingDiv && typingDiv.parentNode) {
+                typingDiv.parentNode.removeChild(typingDiv);
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusBar').textContent = message;
+        }
+
+        async function sendMessage() {
+            if (isStreaming) return;
+            
+            const inputText = document.getElementById('inputText').value.trim();
+            if (!inputText) {
+                alert("请输入问题");
+                return;
+            }
+            
+            document.getElementById('inputText').value = '';
+            document.getElementById('sendBtn').disabled = true;
+            isStreaming = true;
+            
+            addMessage('user', inputText);
+            const typingDiv = showTyping();
+            updateStatus("AI正在思考中...");
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: [{ role: 'user', content: inputText }],
+                        stream: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || '请求失败');
+                }
+                
+                removeTyping(typingDiv);
+                const aiContentDiv = addMessage('ai', '');
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            if (data === '[DONE]') break;
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices[0]?.delta?.content;
+                                if (content) {
+                                    aiContentDiv.innerHTML += content.replace(/\n/g, '<br>');
+                                }
+                            } catch (e) {
+                                console.warn('解析错误:', e);
+                            }
+                        }
+                    }
+                }
+                
+                updateStatus("✓ 对话完成");
+            } catch (error) {
+                removeTyping(typingDiv);
+                addMessage('ai', `<span style="color: #dc3545;">错误: ${error.message}</span>`);
+                updateStatus(`错误: ${error.message}`);
+            } finally {
+                isStreaming = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+            }
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>
